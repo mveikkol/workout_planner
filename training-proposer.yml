@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: training-proposer
+  labels:
+    app: training-proposer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: training-proposer
+  template:
+    metadata:
+      labels:
+        app: training-proposer
+    spec:
+      containers:
+        - image: docker-registry.default.svc:5000/mveikkol/training-proposer:1.0
+          name: training-proposer
+          ports:
+            - containerPort: 5000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: training-proposer
+spec:
+  selector:
+    app: training-proposer
+  ports:
+    - port: 5000
+      protocol: TCP
+      targetPort: 5000
+      name: tcp-5000
+  type: LoadBalancer
+
+---
+
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: training-proposer-route
+spec:
+  host: training-proposer.mveikkol.rahtiapp.fi 
+  to:
+    kind: Service
+    name: training-proposer
+  port:
+    targetPort: 5000
