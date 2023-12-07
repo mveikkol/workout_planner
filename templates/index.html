@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,8 @@
             color: white;
             font-family: 'Courier New', monospace;
             text-align: center;
+            margin: 0; 
+            padding: 0; 
         }
 
         h1 {
@@ -19,15 +22,18 @@
             margin-bottom: 20px;
         }
 
-        button {
+  
+        .action-button {
             background-color: #FFA500;
             color: #212121;
-            width: 200px;
-            height: 60px;
-            font-size: 18px;
+            width: 180px;
+            height: 50px;
+            font-size: 16px;
             margin: 10px;
             border: none;
             cursor: pointer;
+            border-radius: 10px;
+            display: inline-block; 
         }
 
         #workoutPlan {
@@ -35,30 +41,54 @@
             margin-top: 20px;
             white-space: pre-line;
         }
+
+        #message {
+            font-size: 16px;
+            margin-top: 10px;
+            color: #00FF00;
+        }
+
+        form {
+            display: none;
+        }
+
+        #userWorkout {
+            width: 300px;
+            padding: 10px;
+            font-size: 16px;
+        }
     </style>
 </head>
+
+
 <body>
 
     <div>
         <h1>Workout Planner</h1>
-        <button type="button" onclick="generateRandomWorkout()">Random Workout</button>
-        <button type="button" onclick="generateUserDefinedWorkout()">Own Workout</button>
-        <button type="button" onclick="saveWorkout()">Save Workout</button>
+
+        <button class="action-button" type="button" onclick="generateRandomWorkout()">Random Workout</button>
+        <button class="action-button" type="button" onclick="generateUserDefinedWorkout()">Own Workout</button>
+        
+        <form id="ownWorkoutForm">
+            <label for="userWorkout">Enter your workout:</label>
+            <input type="text" id="userWorkout" name="userWorkout">
+            <button class="action-button" type="button" onclick="saveWorkout()">Save User Defined Workout</button>
+        </form>
+
+        <button class="action-button" type="button" onclick="saveRandomWorkout()">Save Random Workout</button>
+
         <div id="workoutPlan"></div>
+        <div id="message"></div>
     </div>
 
     <script>
-        var exercises = [
-            "Push-ups", "Sit-ups", "Squats", "Lunges", "Plank", "Jumping Jacks", "Burpees", "Bicep Curls", "Tricep Dips", "Deadlifts"
-        ];
-
+        var exercises = Array("Push-ups", "Sit-ups", "Squats", "Lunges", "Plank", "Jumping Jacks", "Burpees", "Bicep Curls", "Tricep Dips", "Deadlifts");
         var userDefinedWorkouts = [];
 
         function generateRandomWorkout() {
             var workoutPlan = "Your Random Workout Plan:\n";
             var remainingExercises = [...exercises];
-
-            var numExercises = Math.floor(Math.random() * 3) + 3; // random 3, 4 tai 5 exercise
+            var numExercises = Math.floor(Math.random() * 3) + 3;
 
             for (var i = 0; i < numExercises; i++) {
                 if (remainingExercises.length === 0) {
@@ -68,60 +98,79 @@
                 var randomExercise = remainingExercises.splice(randomIndex, 1)[0];
                 workoutPlan += "- " + randomExercise + " " + generateRandomReps() + "\n";
             }
-
             document.getElementById('workoutPlan').innerText = workoutPlan;
         }
 
         function generateUserDefinedWorkout() {
-            var userWorkout = prompt("Enter your workout separated by commas (e.g., Push-ups 3x12, Sit-ups 4x8, Squats 6x20):");
-            if (userWorkout) {
-                userDefinedWorkouts.push(userWorkout);
-                saveUserDefinedWorkouts();
-                var formattedUserWorkout = formatUserWorkout(userWorkout);
-                document.getElementById('workoutPlan').innerText = "\nYour User Defined Workout Plan:\n" + formattedUserWorkout;
-                alert("User-defined workout saved!");
-            }
+            document.getElementById('userWorkout').value = "";
+            document.getElementById('workoutPlan').innerText = "";
+            document.getElementById('message').innerText = "";
+            document.getElementById('ownWorkoutForm').style.display = "block";
         }
-
-        function formatUserWorkout(userWorkout) {
-            var exercises = userWorkout.split(',').map(function(item) {
-                var parts = item.trim().split(' ');
-                var exerciseName = parts.slice(0, -1).join(' ');
-                var setsAndReps = parts[parts.length - 1];
-                return "- " + exerciseName + " " + setsAndReps;
-            });
-
-            return exercises.join('\n');
-        }
-
 
         function generateRandomReps() {
-            var sets = Math.floor(Math.random() * 2) + 3; // random 3 or 4
+            var sets = Math.floor(Math.random() * 2) + 3;
             var reps = (sets === 3) ? 12 : 8;
-
             return sets + "x" + reps;
         }
 
         function saveWorkout() {
+            var workoutPlan = document.getElementById('userWorkout').value;
+            if (workoutPlan.trim() !== "") {
+                saveUserDefinedWorkouts(workoutPlan);
+            } else {
+                alert("Please enter a workout plan.");
+            }
+        }
+
+        function saveUserDefinedWorkouts(userWorkout) {
+            return fetch("/saveWorkout", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        workoutPlan: userWorkout
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    getWorkouts();
+                    document.getElementById('message').innerText = data.message;
+                    document.getElementById('ownWorkoutForm').style.display = "none";
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("Failed to save workout!");
+                    throw error;
+                });
+        }
+
+        function saveRandomWorkout() {
             var workoutPlan = document.getElementById('workoutPlan').innerText;
-            var blob = new Blob([workoutPlan], { type: "text/plain;charset=utf-8" });
-            saveAs(blob, "workout_plan.txt");
+            if (workoutPlan.trim() !== "") {
+                saveUserDefinedWorkouts(workoutPlan);
+            } else {
+                alert("No workout plan to save. Generate a random workout first.");
+            }
         }
 
-        function saveUserDefinedWorkouts() {
-            localStorage.setItem('userDefinedWorkouts', JSON.stringify(userDefinedWorkouts));
-        }
-
-        // SaveAs function for creating a download link
-        function saveAs(blob, filename) {
-            var link = document.createElement('a');
-            link.href = window.URL.createObjectURL(blob);
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        function getWorkouts() {
+            fetch("/getWorkouts")
+                .then(response => response.json())
+                .then(data => {
+                    var workoutList = data.workouts.map(workout => workout.plan);
+                    document.getElementById('workoutPlan').innerText = workoutList.join('\n');
+                    var latestWorkout = data.workouts[data.workouts.length - 1];
+                    document.getElementById('message').innerText = "Last workout: " + latestWorkout.plan;
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                });
         }
     </script>
 
 </body>
+
 </html>
